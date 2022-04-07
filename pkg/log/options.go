@@ -31,18 +31,22 @@ type Options struct {
 
 	ErrorOutputPaths  []string `json:"error-output-paths" mapstructure:"error-output-paths"`
 
+	// 日志输出级别
 	Level             string   `json:"level"              mapstructure:"level"`
 
 	// Format 支持 console 和 json 2 种格式
 	Format            string   `json:"format"             mapstructure:"format"`
 
+	// 是否停止使用调用函数的文件名和行号注释日志
 	DisableCaller     bool     `json:"disable-caller"     mapstructure:"disable-caller"`
 
+	// 是否完全禁用自动堆栈跟踪捕获
 	DisableStacktrace bool     `json:"disable-stacktrace" mapstructure:"disable-stacktrace"`
 
 	// EnableColor 为 true 开启颜色输出，为 false 关闭颜色输出。
 	EnableColor       bool     `json:"enable-color"       mapstructure:"enable-color"`
 
+	// 是否开启开发者模式
 	Development       bool     `json:"development"        mapstructure:"development"`
 
 	Name              string   `json:"name"               mapstructure:"name"`
