@@ -27,28 +27,34 @@ const (
 // Options 包含与 log 包相关的配置项。
 type Options struct {
 	// OutputPaths，可以设置日志输出， 支持同时输出到多个输出。
+	// 支持输出到多个输出，用逗号分开。支持输出到标准输出（stdout）和文件。
 	OutputPaths       []string `json:"output-paths"       mapstructure:"output-paths"`
 
+	// zap 内部 (非业务) 错误日志输出路径，多个输出，用逗号分开。
 	ErrorOutputPaths  []string `json:"error-output-paths" mapstructure:"error-output-paths"`
 
-	// 日志输出级别
+	// 日志输出级别, 优先级从低到高依次为：Debug, Info, Warn, Error, Dpanic, Panic, Fatal。
 	Level             string   `json:"level"              mapstructure:"level"`
 
-	// Format 支持 console 和 json 2 种格式
+	// Format 支持 console 和 json 2 种格式。Console 其实就是 Text 格式。
 	Format            string   `json:"format"             mapstructure:"format"`
 
 	// 是否停止使用调用函数的文件名和行号注释日志
+	// 如果开启会在日志中显示调用日志所在的文件、函数和行号。
 	DisableCaller     bool     `json:"disable-caller"     mapstructure:"disable-caller"`
 
 	// 是否完全禁用自动堆栈跟踪捕获
+	// 是否在 Panic 及以上级别禁止打印堆栈信息。
 	DisableStacktrace bool     `json:"disable-stacktrace" mapstructure:"disable-stacktrace"`
 
 	// EnableColor 为 true 开启颜色输出，为 false 关闭颜色输出。
 	EnableColor       bool     `json:"enable-color"       mapstructure:"enable-color"`
 
 	// 是否开启开发者模式
+	// 如果是开发模式，会对 DPanicLevel 进行堆栈跟踪。
 	Development       bool     `json:"development"        mapstructure:"development"`
 
+	// Logger 的名字。
 	Name              string   `json:"name"               mapstructure:"name"`
 }
 
@@ -67,6 +73,7 @@ func NewOptions() *Options {
 }
 
 // AddFlags 添加 log 包的 flags 到指定的 FlagSet 对象。
+// AddFlags 方法可以将 Options 的各个字段追加到传入的 pflag.FlagSet 变量中。
 func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.StringSliceVar(&o.OutputPaths, flagOutputPaths, o.OutputPaths,
 		"Output paths of log.")
@@ -109,7 +116,7 @@ func (o *Options) Validate() []error {
 	return errs
 }
 
-// String
+// String 方法可以将 Options 的值以 JSON 格式字符串返回。
 func (o *Options) String() string {
 	data, _ := json.Marshal(o)
 

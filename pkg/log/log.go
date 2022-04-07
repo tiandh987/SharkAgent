@@ -313,6 +313,13 @@ type InfoLogger interface {
 	Info(msg string, fields ...Field)
 	Infof(format string, v ...interface{})
 	Infow(msg string, keysAndValues ...interface{})
+	// Info 使用指定的 key/value 记录日志。
+	// Infof 格式化记录日志。
+	// Infow 也是使用指定的 key/value 记录日志。
+	//
+	// Infow 跟 Info 的区别是：
+	//	使用 Info 需要指定值的类型，通过指定值的日志类型，日志库底层不需要进行反射操作，
+	// 	所以使用 Info 记录日志性能最高。
 
 	// Enabled 测试此 InfoLogger 是否已启用。
 	// 例如，命令行标志可能用于设置日志记录的详细程度, 并禁用某些信息日志。
@@ -377,6 +384,8 @@ type Logger interface {
 	// 例如，logger.Info() 产生与 logger.V(0).Info 相同的结果。
 	InfoLogger
 
+	// log 包为每种级别的日志都提供了 3 种日志记录方式
+
 	Debug(msg string, fields ...Field)
 	Debugf(format string, v ...interface{})
 	Debugw(msg string, keysAndValues ...interface{})
@@ -400,14 +409,18 @@ type Logger interface {
 	// V 返回特定详细级别的 InfoLogger 值。
 	// 更高的详细级别意味着日志消息不太重要。
 	// 传递小于零的日志级别是非法的。
+	//
+	// log 包支持 V Level，可以通过整型数值来灵活指定日志级别，数值越大，优先级越低
 	// 0: Fatal  1: Panic  2: DPanic  3: Error  4: Warn  5: Info  6: Debug
 	V(level int) InfoLogger
+
+	// L 可以很方便地从 Context 中提取出指定的 key-value，
+	// 作为上下文添加到日志输出中
 	L(ctx context.Context) *zapLogger
 
 	Write(p []byte) (n int, err error)
 
-	// WithValues 将一些上下文的 key-value 对添加到 logger 中。
-	// 有关 key-value 对如何工作的文档，请参阅 Info。
+	// WithValues 可以返回一个携带指定 key-value 的 Logger，供后面使用。
 	WithValues(keysAndValues ...interface{}) Logger
 
 	// WithName 为 logger 的名称添加一个新元素。
@@ -416,7 +429,9 @@ type Logger interface {
 	//（有关更多信息，请参阅 package 文档）。
 	WithName(name string) Logger
 
-	// WithContext 返回设置日志值的上下文副本。
+	// WithContext
+	// log 包提供 WithContext 和 FromContext 用来将指定的 Logger 添加到某个 Context 中，
+	// 以及从某个 Context 中获取 Logger
 	WithContext(ctx context.Context) context.Context
 
 	// Flush 调用底层核心的 Sync 方法，刷新所有缓冲的日志条目。
@@ -526,6 +541,9 @@ func (l zapLogger) V(level int) InfoLogger {
 
 func (l *zapLogger) L(ctx context.Context) *zapLogger {
 	lg := l.clone()
+
+	// L() 方法会从传入的 Context 中提取出 requestID 和 username ，追加到 Logger 中，并返回 Logger。
+	// 这时候调用该 Logger 的 Info、Infof、Infow 等方法记录日志， 输出的日志中均包含 requestID 和 username 字段
 
 	if requestID := ctx.Value(KeyRequestID); requestID != nil {
 		lg.zapLogger = lg.zapLogger.With(zap.Any(KeyRequestID, requestID))
