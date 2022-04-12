@@ -27,3 +27,8 @@ COMMON_SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 ifeq ($(origin ROOT_DIR), undefined)
 ROOT_DIR := $(abspath $(shell cd ${COMMON_SELF_DIR}/../.. && pwd -P))
 endif
+
+# 指定需要证书的组件
+ifeq ($(origin CERTIFICATES), undefined)
+CERTIFICATES=iam-apiserver iam-authz-server admin
+endif
