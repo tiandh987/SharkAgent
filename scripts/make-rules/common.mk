@@ -33,6 +33,12 @@ ifeq ($(origin CERTIFICATES), undefined)
 CERTIFICATES=iam-apiserver iam-authz-server admin
 endif
 
+# 临时目录，存放镜像文件
+ifeq ($(origin TMP_DIR),undefined)
+TMP_DIR := $(OUTPUT_DIR)/tmp
+$(shell mkdir -p $(TMP_DIR))
+endif
+
 # 设置一个指定的平台
 ifeq ($(origin PLATFORM), undefined)
 	ifeq ($(origin GOOS), undefined)
