@@ -9,12 +9,22 @@ DOCKER := docker
 # ?= 如果变量没有被赋值，则赋予等号后的值
 DOCKER_SUPPORTED_API_VERSION ?= 1.32
 
+# 镜像推到镜像仓库时的前缀
 REGISTRY_PREFIX ?= marmotedu
 
 # 镜像基础操作系统
 BASE_IMAGE = centos:centos8
 
+# 构建镜像时的额外参数
+EXTRA_ARGS ?= --no-cache
+
+# 构建镜像时的额外参数
 _DOCKER_BUILD_EXTRA_ARGS :=
+
+#
+ifneq ($(EXTRA_ARGS), )
+_DOCKER_BUILD_EXTRA_ARGS += $(EXTRA_ARGS)
+endif
 
 # 通过查看 build/docker/*/Dockerfile 来确定镜像文件
 # $(wildcard <pattern>) 扩展通配符
@@ -45,6 +55,11 @@ IMAGES_DIR ?= $(wildcard ${ROOT_DIR}/build/docker/*)
 # tools 是啥？
 IMAGES ?= $(filter-out tools,$(foreach image,${IMAGES_DIR}, $(notdir ${image})))
 
+# IMAGES 为空，提示 error
+ifeq (${IMAGES},)
+  $(error Could not determine IMAGES, set ROOT_DIR or run in source dir)
+endif
+
 # 验证docker API 版本
 .PHONY: image.verify
 image.verify:
@@ -70,11 +85,20 @@ image.daemon.verify:
 .PHONY: image.build
 image.build: image.verify go.build.verify $(addprefix image.build., $(addprefix ${IMAGE_PLAT}., ${IMAGES}))
 
+.PHONY: image.build.multiarch
+image.build.multiarch: image.verify go.build.verify $(foreach p,$(PLATFORMS),$(addprefix image.build., $(addprefix $(p)., $(IMAGES))))
+
 # 1. 验证 docker 版本
 # 2. 验证 golang 版本
 # 3. image.push.linux_amd64.iam-apiserver
 .PHONY: image.push
 image.push: image.verify go.build.verify $(addprefix image.push., $(addprefix ${IMAGE_PLAT}., ${IMAGES}))
+
+# 1. 验证 docker 版本
+# 2. 验证 golang 版本
+# 3. image.push.linux_amd64.iam-apiserver
+.PHONY: image.push.multiarch
+image.push.multiarch: image.verify go.build.verify $(foreach p,$(PLATFORMS),$(addprefix image.push., $(addprefix $(p)., $(IMAGES))))
 
 # 依赖 image.build.%
 .PHONY: image.push.%
@@ -107,3 +131,40 @@ image.build.%: go.build.%
 		${DOCKER} build ${BUILD_SUFFIX} ; \
 	fi
 	@rm -rf ${TMP_DIR}/${IMAGE}
+
+
+# ================= docker manifest ==============
+.PHONY: image.manifest.push
+image.manifest.push: export DOCKER_CLI_EXPERIMENTAL := enabled
+# image.manifest.push.linux_amd64.iam-apiserver
+image.manifest.push: image.verify go.build.verify \
+$(addprefix image.manifest.push., $(addprefix $(IMAGE_PLAT)., $(IMAGES)))
+
+# 1. 构建并推送镜像
+# 2. 手动删除 docker manifests
+.PHONY: image.manifest.push.%
+image.manifest.push.%: image.push.% image.manifest.remove.%
+	@echo "===========> Pushing manifest $(IMAGE) $(VERSION) to $(REGISTRY_PREFIX) and then remove the local manifest list"
+	@$(DOCKER) manifest create $(REGISTRY_PREFIX)/$(IMAGE):$(VERSION) \
+		$(REGISTRY_PREFIX)/$(IMAGE)-$(ARCH):$(VERSION)
+	@$(DOCKER) manifest annotate $(REGISTRY_PREFIX)/$(IMAGE):$(VERSION) \
+		$(REGISTRY_PREFIX)/$(IMAGE)-$(ARCH):$(VERSION) \
+		--os $(OS) --arch ${ARCH}
+	@$(DOCKER) manifest push --purge $(REGISTRY_PREFIX)/$(IMAGE):$(VERSION)
+
+# Docker cli has a bug: https://github.com/docker/cli/issues/954
+# If you find your manifests were not updated,
+# Please manually delete them in $HOME/.docker/manifests/
+# and re-run.
+.PHONY: image.manifest.remove.%
+image.manifest.remove.%:
+	@rm -rf ${HOME}/.docker/manifests/docker.io_$(REGISTRY_PREFIX)_$(IMAGE)-$(VERSION)
+
+.PHONY: image.manifest.push.multiarch
+image.manifest.push.multiarch: image.push.multiarch $(addprefix image.manifest.push.multiarch., $(IMAGES))
+
+.PHONY: image.manifest.push.multiarch.%
+image.manifest.push.multiarch.%:
+	@echo "===========> Pushing manifest $* $(VERSION) to $(REGISTRY_PREFIX) and then remove the local manifest list"
+	REGISTRY_PREFIX=$(REGISTRY_PREFIX) PLATFROMS="$(PLATFORMS)" IMAGE=$* VERSION=$(VERSION) DOCKER_CLI_EXPERIMENTAL=enabled \
+	  $(ROOT_DIR)/build/lib/create-manifest.sh
