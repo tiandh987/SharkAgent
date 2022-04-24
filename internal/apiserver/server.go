@@ -101,6 +101,7 @@ func buildGenericConfig(cfg *config.Config) (genericConfig *genericapiserver.Con
 		return
 	}
 
+	// Feature 配置
 	if lastErr = cfg.FeatureOptions.ApplyTo(genericConfig); lastErr != nil {
 		return
 	}
