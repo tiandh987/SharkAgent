@@ -21,7 +21,7 @@ type apiServer struct {
 }
 
 func (s *apiServer) PrepareRun() preparedAPIServer {
-	//initRouter(s.genericAPIServer.Engine)
+	initRouter(s.genericAPIServer.Engine)
 	//
 	////s.initRedisStore()
 	//
