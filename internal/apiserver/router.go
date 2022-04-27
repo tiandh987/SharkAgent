@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/tiandh987/SharkAgent/internal/apiserver/controller/v1/user"
 	"github.com/tiandh987/SharkAgent/internal/apiserver/store/mysql"
 )
 
@@ -25,4 +26,6 @@ func installController(g *gin.Engine) (*gin.Engine) {
 			userv1.POST("", userController.Create)
 		}
 	}
+
+	return g
 }
